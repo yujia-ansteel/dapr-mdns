@@ -119,7 +119,7 @@
 
 ### 许可
 
-`dapr-mdns` 项目遵循 [MIT License](LICENSE)。
+`dapr-mdns` 项目遵循 [木兰宽松许可证，第 2 版](LICENSE)。
 
 ## 联系方式
 
