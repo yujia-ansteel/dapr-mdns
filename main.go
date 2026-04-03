@@ -124,17 +124,6 @@ func (d *DaprMDNSParser) LookupDaprService(ctx context.Context, appID string, ti
 			if entry == nil {
 				continue
 			}
-			// fmt.Println(" =============  result =============")
-			// fmt.Printf("✓ 找到服务:\n")
-			// fmt.Printf("  实例名称: %s\n", entry.Instance)
-			// fmt.Printf("  主机名: %s\n", entry.HostName)
-			// fmt.Printf("  端口: %d\n", entry.Port)
-			// fmt.Println("entry.Service ", entry.Service)  // yj3dev-platform-iam-api3
-			// fmt.Printf("  IPv4 地址: %v\n", entry.AddrIPv4) // entry.AddrIPv4  [10.151.47.35]
-			// fmt.Printf("  IPv6 地址: %v\n", entry.AddrIPv6)
-			// fmt.Printf("  文本记录: %v\n", entry.Text)
-			// fmt.Println(" =============  result =============")
-			// 检查是否匹配指定的 appID
 			if entry.Service == appID {
 				info := d.ParseDaprServiceInfo(entry)
 				select {
