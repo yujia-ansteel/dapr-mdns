@@ -43,3 +43,4 @@ go.work
 dist/
 build/
 bin/
+dapr-mdns*
