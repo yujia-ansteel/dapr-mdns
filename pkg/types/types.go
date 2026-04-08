@@ -7,7 +7,9 @@
 // THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 // See the Mulan PSL v2 for more details.
 
-package main
+package types
+
+import "time"
 
 // DaprServiceInfo 存储 Dapr 服务信息
 type DaprServiceInfo struct {
@@ -19,4 +21,12 @@ type DaprServiceInfo struct {
 	IPv4Addresses []string // IPv4 地址
 	IPv6Addresses []string // IPv6 地址
 	TextRecords   []string // 文本记录
+}
+
+// CacheItem 缓存项，包含服务信息和元数据
+type CacheItem struct {
+	ServiceInfo *DaprServiceInfo
+	FirstSeen   time.Time
+	LastUpdated time.Time
+	LastSeen    time.Time
 }

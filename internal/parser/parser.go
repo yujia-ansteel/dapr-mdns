@@ -7,7 +7,7 @@
 // THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 // See the Mulan PSL v2 for more details.
 
-package main
+package parser
 
 import (
 	"context"
@@ -18,6 +18,7 @@ import (
 	"sync"
 	"time"
 
+	"dapr-mdns-resolver/pkg/types"
 	"github.com/grandcat/zeroconf"
 )
 
@@ -54,7 +55,7 @@ func ExtractAppIDFromServiceName(serviceName string) string {
 	}
 
 	// 如果包含协议后缀 ._tcp 或 ._udp，提取 AppID
-	re := regexp.MustCompile(`^([^\.]+)\._(tcp|udp)`)
+	re := regexp.MustCompile(`^([^.]+)\._(tcp|udp)`)
 	matches := re.FindStringSubmatch(service)
 	if len(matches) > 1 {
 		return matches[1]
@@ -70,12 +71,12 @@ func ExtractAppIDFromServiceName(serviceName string) string {
 }
 
 // ParseDaprServiceInfo 解析 Dapr 服务信息
-func (d *DaprMDNSParser) ParseDaprServiceInfo(entry *zeroconf.ServiceEntry) *DaprServiceInfo {
+func (d *DaprMDNSParser) ParseDaprServiceInfo(entry *zeroconf.ServiceEntry) *types.DaprServiceInfo {
 	if entry == nil {
 		return nil
 	}
 
-	info := &DaprServiceInfo{
+	info := &types.DaprServiceInfo{
 		ServiceName:  entry.ServiceInstanceName(),
 		InstanceName: entry.Instance,
 		Port:         entry.Port,
@@ -102,7 +103,7 @@ func (d *DaprMDNSParser) ParseDaprServiceInfo(entry *zeroconf.ServiceEntry) *Dap
 }
 
 // LookupDaprService 查找特定的 Dapr 服务
-func (d *DaprMDNSParser) LookupDaprService(ctx context.Context, appID string, timeout time.Duration) []*DaprServiceInfo {
+func (d *DaprMDNSParser) LookupDaprService(ctx context.Context, appID string, timeout time.Duration) []*types.DaprServiceInfo {
 	// 每次查找创建新的解析器，避免复用导致的问题
 	resolver, err := zeroconf.NewResolver(nil)
 	if err != nil {
@@ -111,7 +112,7 @@ func (d *DaprMDNSParser) LookupDaprService(ctx context.Context, appID string, ti
 	}
 
 	entries := make(chan *zeroconf.ServiceEntry)
-	resultChan := make(chan *DaprServiceInfo, 10) // 增加缓冲区大小以容纳多个实例
+	resultChan := make(chan *types.DaprServiceInfo, 10) // 增加缓冲区大小以容纳多个实例
 
 	// 使用 WaitGroup 等待处理 goroutine 完成
 	var wg sync.WaitGroup
@@ -148,7 +149,7 @@ func (d *DaprMDNSParser) LookupDaprService(ctx context.Context, appID string, ti
 		close(browseDone)
 	}()
 
-	var results []*DaprServiceInfo
+	var results []*types.DaprServiceInfo
 
 	// 等待结果或超时
 	for {
@@ -172,7 +173,7 @@ func (d *DaprMDNSParser) LookupDaprService(ctx context.Context, appID string, ti
 }
 
 // PrintDaprServiceInfo 打印 Dapr 服务信息
-func (d *DaprMDNSParser) PrintDaprServiceInfo(info *DaprServiceInfo) {
+func (d *DaprMDNSParser) PrintDaprServiceInfo(info *types.DaprServiceInfo) {
 	if info == nil {
 		fmt.Println("Service not found")
 		return

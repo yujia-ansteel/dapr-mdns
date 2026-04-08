@@ -1,0 +1,597 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <!--
+        Copyright 2026 pyschemDa <guangdashao1990@163.com>
+
+        Licensed under the Mulan PSL v2.
+        You can use this software according to the terms and conditions of the Mulan PSL v2.
+        You may obtain a copy of Mulan PSL v2 at:
+            http://license.coscl.org.cn/MulanPSL2
+        THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+        See the Mulan PSL v2 for more details.
+    -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dapr mDNS 服务发现</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .stats {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .service-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+        .service-card {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            background-color: white;
+            transition: box-shadow 0.3s;
+        }
+        .service-card:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .service-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .app-id {
+            font-weight: bold;
+            font-size: 1.2em;
+            color: #2196F3;
+        }
+        .status {
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.9em;
+            color: white;
+            background-color: #4CAF50;
+        }
+        .info-row {
+            margin: 8px 0;
+            display: flex;
+        }
+        .label {
+            font-weight: 600;
+            color: #666;
+            min-width: 100px;
+        }
+        .value {
+            color: #333;
+        }
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            color: #888;
+            font-size: 0.9em;
+        }
+        .refresh-btn {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .refresh-btn:hover {
+            background-color: #45a049;
+        }
+        .service-card.expired {
+            border-color: #f44336;
+            background-color: #ffebee;
+        }
+        .status-expired {
+            background-color: #f44336;
+        }
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .stats-left, .stats-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        .search-box {
+            display: flex;
+            gap: 8px;
+        }
+        #search-appid {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            width: 250px;
+        }
+        .search-btn {
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .search-btn:hover {
+            background-color: #0b7dda;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 20px;
+            border-radius: 8px;
+            width: 400px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .modal-title {
+            font-weight: bold;
+            font-size: 1.2em;
+            color: #333;
+        }
+        .close-btn {
+            color: #aaa;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close-btn:hover {
+            color: #333;
+        }
+        .modal-body {
+            margin-bottom: 20px;
+            color: #666;
+        }
+        .modal-footer {
+            text-align: right;
+        }
+        .modal-ok-btn {
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .modal-ok-btn:hover {
+            background-color: #0b7dda;
+        }
+        .error-modal .modal-title {
+            color: #f44336;
+        }
+        .success-modal .modal-title {
+            color: #4CAF50;
+        }
+        .info-modal .modal-title {
+            color: #2196F3;
+        }
+        .clear-btn {
+            background-color: #f44336 !important;
+            color: white !important;
+            border: none !important;
+            padding: 8px 16px !important;
+            border-radius: 4px !important;
+            cursor: pointer !important;
+            font-size: 14px !important;
+            margin-left: 5px !important;
+        }
+        .clear-btn:hover {
+            background-color: #d32f2f !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Dapr mDNS 服务发现</h1>
+        
+        <div class="stats">
+            <div class="stats-left">
+                <div>
+                    <strong>发现的服务数量:</strong> <span id="service-count">0</span>
+                </div>
+                <div>
+                    <strong>最后更新时间:</strong> <span id="last-update">{{.Now.Format "2006-01-02 15:04:05"}}</span>
+                </div>
+            </div>
+            <div class="stats-right">
+                <div class="search-box">
+                    <input type="text" id="search-appid" placeholder="输入 AppID 进行搜索..." />
+                    <button class="search-btn" onclick="searchAppID()">搜索</button>
+                </div>
+                <button class="refresh-btn" onclick="refreshData()">手动刷新</button>
+            </div>
+        </div>
+        
+        <div id="service-list" class="service-list">
+            {{if .Groups}}
+                {{range .Groups}}
+                <h2 style="grid-column: 1 / -1; margin: 20px 0 10px; padding-bottom: 5px; border-bottom: 2px solid #4CAF50;">
+                    {{.AppID}} ({{len .Instances}} 个实例)
+                </h2>
+                    {{range .Instances}}
+                    <div class="service-card {{if .IsExpired}}expired{{end}}">
+                        <div class="service-header">
+                            <div class="app-id">{{.ServiceInfo.AppID}}</div>
+                            <div class="status {{if .IsExpired}}status-expired{{else}}status-online{{end}}">{{if .IsExpired}}离线{{else}}在线{{end}}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="label">实例名称:</div>
+                            <div class="value">{{.ServiceInfo.InstanceName}}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="label">主机名:</div>
+                            <div class="value">{{.ServiceInfo.Host}}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="label">端口:</div>
+                            <div class="value">{{.ServiceInfo.Port}}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="label">IPv4:</div>
+                            <div class="value">{{range .ServiceInfo.IPv4Addresses}}{{.}} {{end}}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="label">首次发现:</div>
+                            <div class="value">{{.FirstSeen.Format "2006-01-02 15:04:05"}}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="label">最后更新:</div>
+                            <div class="value">{{.LastUpdated.Format "2006-01-02 15:04:05"}}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="label">最后发现:</div>
+                            <div class="value">{{.LastSeen.Format "2006-01-02 15:04:05"}}</div>
+                        </div>
+                    </div>
+                    {{end}}
+                {{end}}
+            {{else}}
+                <p style="grid-column: 1 / -1; text-align: center; color: #888;">未发现任何服务</p>
+            {{end}}
+        </div>
+        
+        <div class="footer">
+            <p>数据每 5 秒自动刷新 | Dapr mDNS 发现工具</p>
+        </div>
+    </div>
+
+    <!-- 消息提示模态框 -->
+    <div id="message-modal" class="modal">
+        <div class="modal-content" id="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title">提示</div>
+                <span class="close-btn" onclick="closeMessageModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p id="message-text">发生未知错误</p>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-ok-btn" onclick="closeMessageModal()">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+window.basePath = "{{.BasePath}}";
+let refreshInterval = 5000; // 5 秒
+
+        function buildApiUrl(path) {
+            // 确保 path 以斜杠开头
+            if (!path.startsWith('/')) {
+                path = '/' + path;
+            }
+            // 如果 basePath 是根路径，直接返回 path
+            if (window.basePath === '/') {
+                return path;
+            }
+            // 否则拼接 basePath 和 path
+            return window.basePath + path;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function fetchServices() {
+            const searchAppID = document.getElementById('search-appid').value.trim();
+            let apiUrl = buildApiUrl('/api/services');
+            
+            // 如果有搜索值，则调用特定 AppID 的接口
+            if (searchAppID) {
+                apiUrl = buildApiUrl('/api/services/' + encodeURIComponent(searchAppID));
+            }
+            
+            fetch(apiUrl)
+                .then(response => {
+                    if (!response.ok) {
+                        // 如果搜索特定 AppID 但返回 404，说明缓存中没有
+                        if (searchAppID && response.status === 404) {
+                            return []; // 返回空数组表示没有找到
+                        }
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // 确保 data 是数组
+                    const services = Array.isArray(data) ? data : [];
+                    document.getElementById('service-count').textContent = services.length;
+                    renderServices(services, searchAppID);
+                    document.getElementById('last-update').textContent = new Date().toLocaleString();
+                })
+                .catch(error => {
+                    console.error('获取服务数据失败:', error);
+                    // 如果获取失败，清空显示
+                    document.getElementById('service-count').textContent = 0;
+                    document.getElementById('service-list').innerHTML = 
+                        '<p style="grid-column: 1 / -1; text-align: center; color: #888;">获取服务数据失败</p>';
+                });
+        }
+        
+        function renderServices(services, searchAppID) {
+            const container = document.getElementById('service-list');
+            if (services.length === 0) {
+                let message = '未发现任何服务';
+                if (searchAppID) {
+                    message = `未从缓存中发现 AppID 为 "${escapeHtml(searchAppID)}" 的服务,如果需要请手动点击搜索`;
+                }
+                container.innerHTML = '<p style="grid-column: 1 / -1; text-align: center; color: #888;">' + message + '</p>';
+                return;
+            }
+
+            // 按 AppID 分组
+            const groups = {};
+            const now = new Date();
+            services.forEach(service => {
+                const appID = service.AppID;
+                if (!groups[appID]) {
+                    groups[appID] = [];
+                }
+                // 计算是否过期：最后发现时间超过60秒
+                const lastSeen = service.LastSeen ? new Date(service.LastSeen) : null;
+                const isExpired = lastSeen ? (now - lastSeen) > 60000 : true; // 60秒 = 60000毫秒
+                groups[appID].push({ ...service, isExpired });
+            });
+
+            // 构建 HTML
+            let html = '';
+            Object.keys(groups).sort().forEach(appID => {
+                const instances = groups[appID];
+                html += '<h2 style="grid-column: 1 / -1; margin: 20px 0 10px; padding-bottom: 5px; border-bottom: 2px solid #4CAF50;">' +
+                        escapeHtml(appID) + ' (' + instances.length + ' 个实例)' +
+                        '</h2>';
+                instances.forEach(service => {
+                    const instanceName = service.InstanceName || 'N/A';
+                    const host = service.Host || 'N/A';
+                    const port = service.Port || 'N/A';
+                    const ipv4 = service.IPv4Addresses ? service.IPv4Addresses.join(', ') : 'N/A';
+                    const firstSeen = service.FirstSeen ? new Date(service.FirstSeen).toLocaleString() : 'N/A';
+                    const lastUpdated = service.LastUpdated ? new Date(service.LastUpdated).toLocaleString() : 'N/A';
+                    const lastSeen = service.LastSeen ? new Date(service.LastSeen).toLocaleString() : 'N/A';
+                    const statusClass = service.isExpired ? 'status-expired' : 'status-online';
+                    const statusText = service.isExpired ? '离线' : '在线';
+                    const expiredClass = service.isExpired ? 'expired' : '';
+                    
+                    html += '<div class="service-card ' + expiredClass + '">' +
+                            '    <div class="service-header">' +
+                            '        <div class="app-id">' + escapeHtml(appID) + '</div>' +
+                            '        <div class="status ' + statusClass + '">' + statusText + '</div>' +
+                            '    </div>' +
+                            '    <div class="info-row">' +
+                            '        <div class="label">实例名称:</div>' +
+                            '        <div class="value">' + escapeHtml(instanceName) + '</div>' +
+                            '    </div>' +
+                            '    <div class="info-row">' +
+                            '        <div class="label">主机名:</div>' +
+                            '        <div class="value">' + escapeHtml(host) + '</div>' +
+                            '    </div>' +
+                            '    <div class="info-row">' +
+                            '        <div class="label">端口:</div>' +
+                            '        <div class="value">' + escapeHtml(port.toString()) + '</div>' +
+                            '    </div>' +
+                            '    <div class="info-row">' +
+                            '        <div class="label">IPv4:</div>' +
+                            '        <div class="value">' + escapeHtml(ipv4) + '</div>' +
+                            '    </div>' +
+                            '    <div class="info-row">' +
+                            '        <div class="label">首次发现:</div>' +
+                            '        <div class="value">' + escapeHtml(firstSeen) + '</div>' +
+                            '    </div>' +
+                            '    <div class="info-row">' +
+                            '        <div class="label">最后更新:</div>' +
+                            '        <div class="value">' + escapeHtml(lastUpdated) + '</div>' +
+                            '    </div>' +
+                            '    <div class="info-row">' +
+                            '        <div class="label">最后发现:</div>' +
+                            '        <div class="value">' + escapeHtml(lastSeen) + '</div>' +
+                            '    </div>' +
+                            '</div>';
+                });
+            });
+            container.innerHTML = html;
+        }
+        
+        function refreshData() {
+            fetchServices();
+        }
+        
+        // 搜索指定 AppID - 触发 mDNS 查询
+        function searchAppID() {
+            const appID = document.getElementById('search-appid').value.trim();
+            if (!appID) {
+                showError('请输入 AppID');
+                return;
+            }
+            
+            // 显示搜索中状态
+            const searchBtn = document.querySelector('.search-btn');
+            const originalText = searchBtn.textContent;
+            searchBtn.textContent = '搜索中...';
+            searchBtn.disabled = true;
+            
+            // 发送 mDNS 搜索请求
+            fetch(buildApiUrl('/api/search') + '?appID=' + encodeURIComponent(appID))
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // 无论搜索结果如何，都刷新服务列表
+                    fetchServices();
+                    
+                    // 显示搜索结果消息
+                    if (data.success) {
+                        showMessage(data.message, 'success');
+                    } else {
+                        showMessage(data.message, 'info');
+                    }
+                })
+                .catch(error => {
+                    console.error('搜索失败:', error);
+                    showError('搜索失败: ' + error.message);
+                })
+                .finally(() => {
+                    // 恢复按钮状态
+                    searchBtn.textContent = originalText;
+                    searchBtn.disabled = false;
+                });
+        }
+        
+        // 显示消息弹窗
+        function showMessage(message, type = 'error') {
+            const modal = document.getElementById('message-modal');
+            const modalContent = document.getElementById('modal-content');
+            const modalTitle = document.getElementById('modal-title');
+            const messageText = document.getElementById('message-text');
+            
+            // 设置消息内容
+            messageText.textContent = message;
+            
+            // 移除所有类型相关的类
+            modalContent.classList.remove('error-modal', 'success-modal', 'info-modal');
+            
+            // 设置标题和样式
+            switch (type) {
+                case 'success':
+                    modalTitle.textContent = '成功';
+                    modalContent.classList.add('success-modal');
+                    break;
+                case 'info':
+                    modalTitle.textContent = '提示';
+                    modalContent.classList.add('info-modal');
+                    break;
+                case 'error':
+                default:
+                    modalTitle.textContent = '错误';
+                    modalContent.classList.add('error-modal');
+                    break;
+            }
+            
+            modal.style.display = 'block';
+        }
+        
+        // 关闭消息弹窗
+        function closeMessageModal() {
+            document.getElementById('message-modal').style.display = 'none';
+        }
+        
+        // 兼容旧代码
+        function showError(message) {
+            showMessage(message, 'error');
+        }
+        
+        // 页面加载时获取数据
+        document.addEventListener('DOMContentLoaded', function() {
+            fetchServices();
+            // 设置定时刷新
+            setInterval(fetchServices, refreshInterval);
+            
+            const searchInput = document.getElementById('search-appid');
+            
+            // 搜索框回车键支持
+            searchInput.addEventListener('keypress', function(event) {
+                if (event.key === 'Enter') {
+                    searchAppID();
+                }
+            });
+            
+            // 输入框变化时自动过滤显示
+            let debounceTimer;
+            searchInput.addEventListener('input', function() {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    fetchServices();
+                }, 300); // 300ms 防抖
+            });
+            
+            // 添加清除按钮
+            const searchBox = document.querySelector('.search-box');
+            const clearBtn = document.createElement('button');
+            clearBtn.type = 'button';
+            clearBtn.textContent = '清除';
+            clearBtn.className = 'clear-btn';
+            clearBtn.addEventListener('click', function() {
+                searchInput.value = '';
+                fetchServices();
+            });
+            searchBox.appendChild(clearBtn);
+        });
+    </script>
+</body>
+</html>

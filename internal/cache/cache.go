@@ -7,36 +7,30 @@
 // THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 // See the Mulan PSL v2 for more details.
 
-package main
+package cache
 
 import (
 	"sync"
 	"time"
+
+	"dapr-mdns-resolver/pkg/types"
 )
 
 // ServiceCache 缓存 Dapr 服务信息
 type ServiceCache struct {
 	mu    sync.RWMutex
-	items map[string][]*CacheItem
-}
-
-// CacheItem 缓存项，包含服务信息和元数据
-type CacheItem struct {
-	ServiceInfo *DaprServiceInfo
-	FirstSeen   time.Time
-	LastUpdated time.Time
-	LastSeen    time.Time
+	items map[string][]*types.CacheItem
 }
 
 // NewServiceCache 创建新的服务缓存
 func NewServiceCache() *ServiceCache {
 	return &ServiceCache{
-		items: make(map[string][]*CacheItem),
+		items: make(map[string][]*types.CacheItem),
 	}
 }
 
 // AddOrUpdateAll 添加或更新缓存项
-func (c *ServiceCache) AddOrUpdateAll(appID string, infos []*DaprServiceInfo) {
+func (c *ServiceCache) AddOrUpdateAll(appID string, infos []*types.DaprServiceInfo) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -47,7 +41,7 @@ func (c *ServiceCache) AddOrUpdateAll(appID string, infos []*DaprServiceInfo) {
 	items := c.items[appID]
 
 	// 第一步：清理过期或无效的缓存项
-	validItems := make([]*CacheItem, 0, len(items))
+	validItems := make([]*types.CacheItem, 0, len(items))
 	for _, item := range items {
 		// 过滤条件：实例为空 或 最后更新时间超过60秒
 		if item.ServiceInfo.InstanceName == "" || now.Sub(item.LastUpdated) > expiryDuration {
@@ -71,7 +65,7 @@ func (c *ServiceCache) AddOrUpdateAll(appID string, infos []*DaprServiceInfo) {
 		}
 		// 不存在，作为新实例添加
 		if !found {
-			validItems = append(validItems, &CacheItem{
+			validItems = append(validItems, &types.CacheItem{
 				ServiceInfo: info,
 				FirstSeen:   now,
 				LastUpdated: now,
@@ -85,15 +79,14 @@ func (c *ServiceCache) AddOrUpdateAll(appID string, infos []*DaprServiceInfo) {
 }
 
 // Add 添加缓存项
-func (c *ServiceCache) Add(appID string, info *DaprServiceInfo) {
+func (c *ServiceCache) Add(appID string, info *types.DaprServiceInfo) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	now := time.Now()
 
 	// 如果 AppID 不存在，添加新实例
-
-	c.items[appID] = []*CacheItem{
+	c.items[appID] = []*types.CacheItem{
 		{
 			ServiceInfo: info,
 			FirstSeen:   now,
@@ -101,12 +94,10 @@ func (c *ServiceCache) Add(appID string, info *DaprServiceInfo) {
 			LastSeen:    now,
 		},
 	}
-	return
-
 }
 
 // Get 获取缓存项列表
-func (c *ServiceCache) Get(appID string) ([]*CacheItem, bool) {
+func (c *ServiceCache) Get(appID string) ([]*types.CacheItem, bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -115,7 +106,7 @@ func (c *ServiceCache) Get(appID string) ([]*CacheItem, bool) {
 }
 
 // GetAll 获取所有缓存项
-func (c *ServiceCache) GetAll() []*CacheItem {
+func (c *ServiceCache) GetAll() []*types.CacheItem {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -124,7 +115,7 @@ func (c *ServiceCache) GetAll() []*CacheItem {
 	for _, instances := range c.items {
 		total += len(instances)
 	}
-	items := make([]*CacheItem, 0, total)
+	items := make([]*types.CacheItem, 0, total)
 	for _, instances := range c.items {
 		items = append(items, instances...)
 	}
@@ -144,7 +135,7 @@ func (c *ServiceCache) Clear() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.items = make(map[string][]*CacheItem)
+	c.items = make(map[string][]*types.CacheItem)
 }
 
 // Count 返回缓存项数量
